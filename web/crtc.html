@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="ISO-8859-1">
+<title>CRTC Gateway</title>
+
+<style type="text/css">
+<!--
+.dvisible {
+    position: absolute;
+	width: 90%;
+    visibility: visible;
+} 
+.dinvisible {
+	background-color: blue;
+    position: absolute;
+	width: 90%;
+    visibility: hidden;
+}
+.dsession {
+	background-color: blue;
+    position: absolute;
+	width: 95%;
+	top: 200px;
+    visibility: hidden;
+}
+--> 
+</style>
+
+<script src="webrtc_xbrowser.js?version=0.1.0"></script>
+<script src="signalling.js?version=0.1.0"></script>
+<script src="agent.js?version=0.1.0"></script>
+
+<script type="text/javascript">
+function utildisappear(elementid) {
+	document.getElementById(elementid).className = 'dinvisible';
+    document.getElementById(elementid).style.display = 'none';
+}
+
+function utilappear(elementid) {
+   document.getElementById(elementid).style.display = 'inline';
+   document.getElementById(elementid).className = 'dvisible';   
+}
+function uinextaction(text) {
+   document.getElementById('nexttext').innerHTML = text;
+}
+function uierror(text) {
+   document.getElementById('errormsg').innerHTML = text;
+}
+
+function handleserverdisconnect(errortext) {
+     if (typeof errortext != 'undefined' && errortext != null) {
+          uierror(errortext);
+	 }
+     // leave any inflight session undisturbed ... should not require signalling server
+	 document.getElementById('loginbutton').innerHTML = "Login";
+}
+
+// registration
+// ------------
+var registered = false;
+function loginform() {
+	if (registered === false) {
+		var username = document.getElementById('username').value;
+		var password = document.getElementById('password').value;
+		var host = document.getElementById('hostname').value;
+		agentregister(host, username, password, postregistration, handleinvitation, handleserverdisconnect);
+	}
+	else {
+	    agentunregister();
+		document.getElementById('loginbutton').innerHTML = "Login";
+	    utildisappear("directory");
+		uinextaction("Enter username and password");
+        uierror("");		
+		registered = false;
+	}
+}	
+
+function postregistration(status) {
+
+   if (status === 'ok') {
+       // make UI changes
+	   uinextaction("Please wait ...");
+       document.getElementById('username').readOnly = true;
+       document.getElementById('password').readOnly = true; 
+       //document.getElementById('loginbutton').style.visibility = 'hidden'; 
+       document.getElementById('loginbutton').innerHTML = "Logout";	   
+	   uinextaction("REtrieving active users. Please wait ...");
+	   registered = true;
+       agentregistrations(populateDirectory);	  
+   }
+   else {
+       // registration failed.  Simply update the error test
+	   uierror("Login failed");
+	   uinextaction("Please re enter userid and password");
+   }   
+}
+
+// directory - agentregistrations callback
+// ----------------------------------------
+function populateDirectory(connections) {
+
+    uinextaction("Registration complete.  Loading ative users list ...");
+	if (connections.length == 0) {
+	     // we are alone in the universe
+		var directoryhtml = document.getElementById('directory');
+		var httpstr = "<p>No user available currently</p>";
+		directoryhtml.innerHTML = httpstr;		
+	    utilappear('directory');
+		uinextaction(" ");	
+		return;
+	}
+   	var username = document.getElementById('username').value;
+   	var httpstr = "";
+	var selectattr = "id=\"remotename\"";
+   	if (connections.length < 20) {
+		httpstr = "<select id=\"remotename\" style=\"width: 298px;\" "+selectattr +" size=" +connections.length +">";
+	}
+	else {
+		httpstr = "<select style=\"width: 298px;\" size=20" +selectattr +">";
+	}
+	for(var i=0; i<connections.length; ++i) {
+	    console.log("%d %s", i, connections[i]);
+	    if (username != connections[i]) {
+			httpstr += "<option id=\"";
+			httpstr += connections[i];
+			httpstr +="\">";
+			httpstr += connections[i];
+            httpstr	+="</option>";
+		}
+	}
+	httpstr +="</select><br>";
+	httpstr +="<button style=\"width: 79px;\" id=\"invitebutton\" value=\"Invite\" onclick=\"directoryform()\">Invite</button>";
+	httpstr +="<p>Directory</p>";
+	var directoryhtml = document.getElementById('directory');
+ 	directoryhtml.innerHTML = httpstr;
+	utilappear('directory');
+	uinextaction("Select username to send Invite");
+}
+
+// Invite
+// ------
+function directoryform() {
+    var dropdown = document.getElementById('remotename');  
+    var remoteusername = dropdown.options[dropdown.selectedIndex].text;
+    agentinvite(remoteusername, handleinviteresponse);    // send an invite
+}
+
+function handleinviteresponse(status) {
+ 
+    if (status === 'ok') {
+         var dropdown = document.getElementById('remotename');  
+         var remoteusername = dropdown.options[dropdown.selectedIndex].text;
+         doconnect(true);
+    }
+    else {
+		 uierror("Connect failed");
+    }
+}
+
+
+// handle incoming invite
+// ---------------
+
+function handleinvitation(remoteusername, id) {
+   uinextaction("Incoming call detected.  Accept or reject call");
+   document.getElementById('remoteusername').innerHTML = remoteusername;
+   document.getElementById('remoteusername').setAttribute("data-id", id);
+   utildisappear("directory");
+   utilappear("invite");
+}
+function acceptinvitation() {
+   utildisappear("invite");
+   utilappear("session");
+   doconnect(false);
+   uinextaction(" ");
+}
+function rejectinvitation() {
+   var remoteid = document.getElementById('remoteusername').getAttribute("data-id");
+   agentrejectinvitation(document.getElementById('remoteusername').value, remoteid);
+   utildisappear("invite");
+   agentregistrations(populateDirectory);
+   utilappear("directory");
+   uinextaction("Select username to send Invite");
+}
+
+
+// Session
+// -------
+
+function doconnect(firstcaller) {
+
+	if (firstcaller == true) { 
+	    document.getElementById('invitebutton').disabled = true;
+	}
+    var dropdown = document.getElementById('remotename');
+    var remoteusername = dropdown.options[dropdown.selectedIndex].text;
+    utildisappear("directory");
+    utilappear("session");
+    agentconnect(true, true, firstcaller, sessionclose, mediasuccess, mediafailed);
+	uinextaction("Awaiting invite response");
+}
+
+function mediasuccess(firstcaller) {
+     uinextaction("Call setup in progress ... please wait");
+    if (firstcaller == false) {
+	    var remoteid = document.getElementById('remoteusername').getAttribute("data-id");
+        agentacceptinvitation(document.getElementById('remoteusername').value, remoteid);
+	}
+	else {
+	    agentcreateoffer();
+	}
+}
+
+function mediafailed(msg) {
+	uierror("Call failed. Error acquiring camera and/or microphone input");
+	agentdisconnect();
+	utildisappear("session");
+	utilappear("directory");
+	agentregistrations(populateDirectory);
+    uinextaction("");	
+}
+
+// Session end
+// -----------
+
+function sessionclose(sessionid) {
+    agentdisconnect();
+	closestream(remote_video);
+	closestream(local_video);
+    utildisappear("session");
+    utilappear("directory");
+	agentregistrations(populateDirectory);
+    uinextaction("Call disconnected. Please select another user to call");
+	uierror(" ");
+}
+
+function endconnect() {
+    agentdisconnect();
+    utildisappear("session");
+	closestream(remote_video);
+	closestream(local_video);	
+    utilappear("directory");
+	agentregistrations(populateDirectory);
+	uinextaction("Select username to send Invite");
+	uierror(" ");
+}
+	
+window.onload=function(){
+    var url = window.location.host;
+    document.getElementById('hostname').innerHTML=url;
+	document.getElementById('hostname').value=url;
+}
+
+</script>
+
+</head>
+<body>
+
+<h1 align="center">CRTC Demo v0.1</h1>
+	
+<div id="next">
+   <table style="width: 100%">
+      <tr>
+	  <td style="width: 10%"></td>
+	  <td style="width: 35%">
+		<p id="nexttext">Enter username and password</p>
+	  </td>
+      <td style="width: 5%"></td>
+      <td style="width: 35%">	  
+		<p id="errormsg" style="color: red"></p>
+	  </td>
+	  <tr>
+   </table>
+</div>	
+
+<!--                                                           **LOGIN**  -->
+<div id="login" style="background-color : rgb(240, 230, 255)"> 
+    <table style="width: 100%">
+	    <tr>
+	      <td style="width: 20%"></td>
+		  <td style="width: 10%">Userid:</td>
+		  <td style="width: 25%">
+		        <input name="username" id="username" style="width: 300px;"></td>
+		  <td style="width: 5%"></td>
+		  <td style="width: 20%"></td>
+		</tr>
+		<tr>
+		  <td></td>
+		  <td>Password:</td>
+		  <td><input name="password" id="password" style="width: 300px;"></td>
+		  <td></td>
+		  <td name="host" id="hostname"></td>
+		</tr>
+		 <tr>
+		  <td></td>
+		  <td><button style="width: 79px;" id="loginbutton" value="Login" onclick="loginform()">Login</button></td>
+         </tr>		  
+	</table>
+</div>
+
+<br><br>
+
+<!--                                             **HANDLE INVITE** -->
+<div id="invite" class="dinvisible">
+    <table style="width :100%;">
+	 <tr>
+		<td width="30%"></td>
+		<td width="30%" style="background-color: rgb(210, 200, 250);">
+			<p>Incoming call from:
+				<div id="remoteusername">
+				</div>
+			</p>
+		    <button id="acceptinvite" onclick="acceptinvitation()">Accept</button>
+            <button id="rejectinvite" onclick="rejectinvitation()">Reject</button>
+		</td>
+		<td width="40%"></td>
+	 </tr>
+	 </table>
+</div>	
+	
+<!--                                                **DIRECTORY**  -->	
+<table style="width :100%;">	
+	<tr>
+		<td style="width : 30%"></td>
+		<td id="directory"    style="width : 50%">
+			<div id="directory" class="dvisible">	
+			</div>
+		</td>
+		<td style="width : 20%"></td>
+	</tr>
+</table>
+
+
+<div id="session" class="dsession" style="; border: 1px solid green; background-color:red;">
+
+	<video id="remote_video" autoplay="false"></video>
+    <video id="local_video"  width="80" height="60" autoplay="true"></video>
+	<button style="width: 79px;" id="hangupbutton" value="Hangup" onclick="endconnect()">Hangup</button>	
+</div>
+
+
+</body>
+</html>

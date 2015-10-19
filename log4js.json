@@ -1,0 +1,13 @@
+{
+  "appenders": [
+    {
+      "type": "console" 
+    },
+	{ 
+	   "type": "file", 
+	   "filename": "logs/crtc.log",
+	   "maxLogSize": 20480,
+       "backups": 3
+    }
+  ]
+}

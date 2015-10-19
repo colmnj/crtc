@@ -1,0 +1,72 @@
+Usage
+-----
+
+Registration
+============
+
+1.  Register
+
+agentregister( host, user, password, callback, invitecallback, serverdisconnect )
+
+   host of the signalling server 
+   userid / password
+   callback for registration complete
+   invitecallback to handle incoming invitations to join a webrtc session
+   serverdisconnectcallback notification the server has disconnected this agent
+   
+If the callback indicates registration fails then the user is asked to attempt registration again (Step 1)   
+
+2.  Find out who else is present.
+
+agentregistrations(callback)
+ 
+   Register a callback to return a list of active users.  This callback fires for notications of changes in the presencd of users.
+
+Making a call
+=============
+
+3a.  Make a call
+
+ agentinvite(remoteusername, callback)
+ 
+Invite remoteusername to a call.  The callback will handle the response - accepted or rejected.
+If rejected then return to Step 2.
+
+4a.  Webrtc session setup
+
+  agentconnect(useAudio, userVideo, bool isCaller, sessionclosecallback, mediasuccesscallback, mediafailedcallback);
+  
+  useAudio :  true/false
+  useVideo : true/false 
+  isCaller : true/false  (did we sent the invite (true), or did we respond positively to an invite (false))
+  sessionclosecallback :   fires if the session closes.  Connection lost, far end agent hangs up
+  mediasuccess :  fires if/when connection made and media established
+  mediafailedcallback :  fires if we have failed to create local media streams.
+  
+5a.  Begin media neotiation:
+  
+  agentcreateoffer()   
+
+6a.  If successful the session will start and audio and video streams will flow.
+  
+  
+Handling an inccoming call
+===========================
+From  Step 1 or 2 above.
+
+3b.  The invitecallback from Step 1 fires.
+
+4b.  Either call agentrejectinvitation ending the transaction and returning  to Step 1 or 2 above. 
+               OR
+            call agentconnect(....)  in this case setting isCaller to false. (See 4a for api)
+
+5b.  The mediasuccess callback fires
+            call agentacceptinvitation
+
+6b.   If successful the session will start and audio and video streams will flow
+
+Ending a call
+=============
+
+Whether this agent or the remote agent  has initiated the disconnect, agentdisconnect is called. Typicall agentregistrations would next be called to refresh the list of userids present.
+  
