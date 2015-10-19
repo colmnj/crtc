@@ -647,8 +647,7 @@ log_min=1
 </pre>
 </div>
 <div title="Server startup" creator="YourName" modifier="YourName" created="201510191336" modified="201510191641" changecount="3">
-<pre>
-Usage:
+<pre>Usage:
      node crtc.js { -port xxxx =loglevel xxxx -log4jcfg xxxxx -logname xxxx }
 
     -port:        port for http and websocket connections (default 1230)
@@ -673,6 +672,25 @@ On windows platforms any serious use requires the crtc server be run as a servic
 </div>
 <div title="SiteTitle" creator="cpq" modifier="YourName" created="201201251919" modified="201510142248" changecount="3">
 <pre>Crtc</pre>
+</div>
+<div title="Step by Step" creator="YourName" modifier="YourName" created="201510192305" modified="201510192314" changecount="4">
+<pre>*Install node.js as appropriate for your platform
+*Install node.js additional mdoules [[Node.js modules]]
+*Optional but recommended :  Set up your own server certificate [[TLS Setup]]
+*Optional but recommended :  Implement your own security [[Server Security]]
+*Optional:  configure logging [[Server logging]]
+*Startup the server [[Server startup]]
+
+Once the server is started navigate to 
+https://[hostname]:[port name from startup parameter]/crtc.html
+
+e,g
+{{{
+https://10.0.0.5:1230/crtc.html
+}}}
+
+
+</pre>
 </div>
 <div title="StyleSheet" creator="cpq" modifier="cpq" created="201202121731" modified="201202121852" changecount="2">
 <pre>.leftmargin{
